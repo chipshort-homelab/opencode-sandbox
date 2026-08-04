@@ -45,19 +45,21 @@ state must live in the working directory.
 EOF
 }
 
-# Never allow these to become writable, they are host/system state.
+# Never make a whole system-managed root writable. We only protect the roots
+# themselves (and a couple of broad store trees): bwrap's `--bind dir dir`
+# remounts just that one path read-write and leaves its siblings read-only, so
+# a specific subdirectory -- e.g. a working directory under /var/lib/hermes
+# or /home/<user> -- is safe to make writable. This matches the documented
+# contract: "persistent state must live in the working directory", even when
+# that working directory happens to sit inside $HOME.
 is_protected_path() {
-  local p base
+  local p
   p="$1"
-  [[ "$p" == "/" ]] && return 0
   p="${p%/}"
-  base="${p#/}"
-  base="${base%%/*}"
-  case "$base" in
-    nix|etc|usr|var|run|proc|sys|dev|bin|sbin|lib|lib64|boot|opt|tmp|root)
+  [[ -z "$p" ]] && p="/"
+  case "$p" in
+    /|/nix/store|/nix/var|/etc|/usr|/run|/proc|/sys|/dev|/bin|/sbin|/lib|/lib64|/boot|/opt|/root|/tmp|/var|/home)
       return 0 ;;
-    home)
-      [[ "$p" == "/home" ]] && return 0 ;;
   esac
   return 1
 }
