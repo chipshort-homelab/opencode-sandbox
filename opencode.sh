@@ -21,9 +21,18 @@ done
 # Run without opencode's permission system: --auto auto-approves bash, edit,
 # webfetch, ... requests that are not explicitly denied. Set
 # OPENCODE_SANDBOX_NO_AUTO=1 to keep the normal permission prompts.
-auto=()
+#
+# opencode >= 1.18 rejects `--auto` when it precedes the `run` subcommand
+# (it falls back to printing help and exiting 1). It must be attached after
+# `run`:  opencode run --auto '<task>'. For other invocations (TUI, pr,
+# serve, ...) keep it at the front as before.
+oc_args=("$@")
 if [[ "${OPENCODE_SANDBOX_NO_AUTO:-0}" != "1" ]]; then
-  auto=(--auto)
+  if [[ ${#oc_args[@]} -gt 0 && "${oc_args[0]}" == "run" ]]; then
+    oc_args=(run --auto "${oc_args[@]:1}")
+  else
+    oc_args=(--auto "${oc_args[@]}")
+  fi
 fi
 
-exec @sandboxPath@ --net "${opts[@]}" -- @opencodePath@ "${auto[@]}" "$@"
+exec @sandboxPath@ --net "${opts[@]}" -- @opencodePath@ "${oc_args[@]}"
