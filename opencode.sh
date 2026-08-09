@@ -2,8 +2,10 @@
 set -euo pipefail
 
 # opencode wrapper: run the real opencode inside the nixos-sandbox with
-# network enabled. opencode creates these four XDG dirs at startup, so they
-# are bound read-write; the rest of $HOME stays read-only.
+# network enabled. opencode creates these XDG dirs at startup; config, state
+# and data are bound read-write and the cache dir (~/.cache) is already
+# writable wholesale via the general sandbox. The rest of $HOME stays
+# read-only.
 
 # When cwd is a git linked worktree, git must write to the MAIN repo's .git
 # dir, which lives outside cwd. Make that dir writable too; for a normal
@@ -11,7 +13,6 @@ set -euo pipefail
 
 dirs=(
   "${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
-  "${XDG_CACHE_HOME:-$HOME/.cache}/opencode"
   "${XDG_STATE_HOME:-$HOME/.local/state}/opencode"
   "${XDG_DATA_HOME:-$HOME/.local/share}/opencode"
 )

@@ -34,9 +34,10 @@ pkgs.callPackage
           sandbox wraps a command in a bubblewrap sandbox. The whole system is
           mounted read-only, including $HOME and $XDG_RUNTIME_DIR. Only the
           working directory (and dirs given with -w/--write) are writable,
-          plus the nix daemon socket, the user's per-user nix store dirs and
-          the nix cache/state dirs (~/.cache/nix, ~/.local/state/nix), so nix
-          tooling works for any command.
+          plus the user's cache dir (~/.cache), the nix daemon socket, the
+          user's per-user nix store dirs and the nix state dir
+          (~/.local/state/nix), so cached tool data and nix tooling work for
+          any command.
         '';
         homepage = "https://github.com/NixOS/bubblewrap";
         license = licenses.mit;

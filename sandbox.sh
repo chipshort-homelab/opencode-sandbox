@@ -9,9 +9,10 @@ set -euo pipefail
 #   * writable inside the sandbox:
 #       - the working directory (or the directory given with -w/--write)
 #       - /tmp (tmpfs, discarded on exit)
+#       - the cache dir (~/.cache), so any tool's cache works
 #       - the nix daemon socket, the user's per-user store dirs, and the nix
-#         cache/state dirs (~/.cache/nix, ~/.local/state/nix), so nix tooling
-#         works no matter which command is run
+#         state dir (~/.local/state/nix), so nix tooling works no matter which
+#         command is run
 #   * $HOME and $XDG_RUNTIME_DIR are otherwise read-only: nothing may be
 #     written there persistently except the nix cache/state above; everything
 #     else must live in the working directory.
@@ -160,22 +161,32 @@ for d in \
   [[ -d "$d" ]] && args+=(--bind "$d" "$d")
 done
 
-# nix's cache and state live under the user's home (e.g. the fetcher cache
-# used by flakes) but the rest of $HOME must stay read-only. Bind only the
-# nix subdirectories read-write. If they cannot be created in $HOME, fall
-# back to the ephemeral /tmp so nix tooling still works.
-_nix_home_ok=1
-for d in \
-  "${XDG_CACHE_HOME:-$HOME/.cache}/nix" \
-  "${XDG_STATE_HOME:-$HOME/.local/state}/nix"; do
-  if mkdir -p "$d" 2>/dev/null; then
-    args+=(--bind "$d" "$d")
-  else
-    _nix_home_ok=0
-  fi
-done
-if [[ $_nix_home_ok -eq 0 ]]; then
+# The cache dir (~/.cache) is writable so any tool's cache works, and the nix
+# state dir (~/.local/state/nix, e.g. the fetcher cache used by flakes) is
+# writable so nix tooling works. The rest of $HOME stays read-only. If a dir
+# cannot be created in $HOME (or resolves to a protected system path), fall
+# back to the ephemeral /tmp so tools still work.
+_cache_home="${XDG_CACHE_HOME:-$HOME/.cache}"
+_state_home="${XDG_STATE_HOME:-$HOME/.local/state}/nix"
+
+_cache_ok=1
+if ! is_protected_path "$_cache_home" && mkdir -p "$_cache_home" 2>/dev/null; then
+  args+=(--bind "$_cache_home" "$_cache_home")
+else
+  _cache_ok=0
+fi
+
+_state_ok=1
+if ! is_protected_path "$_state_home" && mkdir -p "$_state_home" 2>/dev/null; then
+  args+=(--bind "$_state_home" "$_state_home")
+else
+  _state_ok=0
+fi
+
+if [[ $_cache_ok -eq 0 ]]; then
   export XDG_CACHE_HOME=/tmp/.nix-sandbox/cache
+fi
+if [[ $_state_ok -eq 0 ]]; then
   export XDG_STATE_HOME=/tmp/.nix-sandbox/state
 fi
 
