@@ -45,14 +45,52 @@ fi
 #
 # opencode >= 1.18 rejects `--auto` when it precedes the `run` subcommand
 # (it falls back to printing help and exiting 1). It must be attached after
-# `run`:  opencode run --auto '<task>'. For other invocations (TUI, pr,
-# serve, ...) keep it at the front as before.
+# `run`:  opencode run --auto '<task>'.
+#
+# Only the default TUI command and `run` support --auto. All other
+# subcommands (models, providers, stats, etc.) do not; a leading --auto is
+# interpreted as a project directory and fails with "Failed to change
+# directory to ...". So we only inject --auto for TUI and run.
 oc_args=("$@")
 if [[ "${OPENCODE_SANDBOX_NO_AUTO:-0}" != "1" ]]; then
-  if [[ ${#oc_args[@]} -gt 0 && "${oc_args[0]}" == "run" ]]; then
-    oc_args=(run --auto "${oc_args[@]:1}")
-  else
-    oc_args=(--auto "${oc_args[@]}")
+  # Avoid duplicating if user already passed --auto
+  has_auto=0
+  for _a in "${oc_args[@]}"; do
+    if [[ "$_a" == "--auto" ]]; then has_auto=1; break; fi
+  done
+  if [[ $has_auto -eq 0 ]]; then
+    # Scan for a known subcommand token anywhere in args (handles global
+    # flags before the subcommand, e.g. `opencode --print-logs models`).
+    known="acp mcp attach completion debug providers auth agent upgrade uninstall serve web models stats export import github pr session plugin plug db run"
+    subcmd=""
+    subcmd_idx=-1
+    for i in "${!oc_args[@]}"; do
+      tok="${oc_args[i]}"
+      for sc in $known; do
+        if [[ "$tok" == "$sc" ]]; then
+          subcmd="$sc"
+          subcmd_idx=$i
+          break 2
+        fi
+      done
+    done
+    if [[ "$subcmd" == "run" ]]; then
+      # Insert --auto immediately after `run`, preserving global flags before it
+      new_args=()
+      for i in "${!oc_args[@]}"; do
+        new_args+=("${oc_args[i]}")
+        if [[ $i -eq $subcmd_idx ]]; then
+          new_args+=(--auto)
+        fi
+      done
+      oc_args=("${new_args[@]}")
+    elif [[ -n "$subcmd" ]]; then
+      # Subcommand does not support --auto – leave args unchanged
+      :
+    else
+      # No subcommand => TUI (project path or global flags) – prepend --auto
+      oc_args=(--auto "${oc_args[@]}")
+    fi
   fi
 fi
 
