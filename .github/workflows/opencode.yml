@@ -31,6 +31,3 @@ jobs:
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
         with:
           model: ${{ vars.OPENCODE_MODEL }}
-          # TODO: remove once upstream fixes new OIDC sub format
-          # https://github.com/anomalyco/opencode/issues/37823
-          use_github_token: true
