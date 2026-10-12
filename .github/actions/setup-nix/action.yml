@@ -1,0 +1,33 @@
+name: Setup Nix
+description: Install Nix, enable the Magic Nix Cache, and configure auth for private flake inputs.
+
+inputs:
+  org-read-token:
+    description: Token with read access to the private flake inputs.
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - name: Install Nix
+      uses: DeterminateSystems/nix-installer-action@v22
+
+    - name: Set up Magic Nix Cache
+      uses: DeterminateSystems/magic-nix-cache-action@v11
+      with:
+        use-gha-cache: disabled
+        use-flakehub: disabled
+
+    - name: Configure auth for private flake inputs
+      if: ${{ inputs.org-read-token != '' }}
+      shell: bash
+      env:
+        ORG_READ_TOKEN: ${{ inputs.org-read-token }}
+      run: |
+        git config --global url."https://x-access-token:${ORG_READ_TOKEN}@github.com/".insteadOf "https://github.com/"
+        # SSH-formed URLs fetch through the same token. The lock keeps the
+        # ssh:// URL; only the transport changes. --add keeps all three
+        # insteadOf values (plain set would overwrite).
+        git config --global --add url."https://x-access-token:${ORG_READ_TOKEN}@github.com/".insteadOf "ssh://git@github.com/"
+        git config --global --add url."https://x-access-token:${ORG_READ_TOKEN}@github.com/".insteadOf "git@github.com:"
+        echo "NIX_CONFIG=access-tokens = github.com=${ORG_READ_TOKEN}" >> "$GITHUB_ENV"
