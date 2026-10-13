@@ -30,6 +30,10 @@ jobs:
       - name: Create pull request
         uses: peter-evans/create-pull-request@v8
         with:
+          # PAT so the PR is attributed to a user: CI runs on the PR without
+          # manual approval (GITHUB_TOKEN-authored PRs are held for approval).
+          # Falls back to GITHUB_TOKEN when the secret is not set.
+          token: ${{ secrets.GH_TOKEN_FOR_UPDATES || github.token }}
           branch: nix/flake-update
           commit-message: "chore(nix): update flake inputs"
           title: "chore(nix): update flake inputs"
